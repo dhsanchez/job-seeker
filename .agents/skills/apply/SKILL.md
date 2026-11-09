@@ -30,6 +30,7 @@ The user says `apply` (or variants: "apply to N jobs", "postulate", "search jobs
   node scripts/db.js "SELECT data->'profile' AS profile, data->'job_preferences' AS prefs, data->'personal_info' AS personal FROM users WHERE id = <user_id>"
   node scripts/db.js "SELECT url FROM applications WHERE user_id = <user_id>"
   ```
+- [ ] **CV for LinkedIn Easy Apply:** never keep LinkedIn's preselected/default resume. Upload the CV from `users.data.profile.cv_paths` (`es` for Spanish-language postings, `en` for English; fall back to `profile.cv_path`) using `browser.js exec upload <path>` on the Resume step, then verify the selected file name on the review page before submitting. If `cv_paths` is missing, ask the user (Gold Rule 5c). Stated by the user, saved in `preferences` (`workflow/linkedin_cv`)
 - [ ] **DB is the single source of truth for ALL form fields.** Before filling ANY form (LinkedIn, Lever, Greenhouse, Workday, SuccessFactors, custom sites), the agent must have the profile data loaded in context. **Never invent, guess, or fabricate any value.** If a required field is not in the DB, STOP, ask the user, save the answer to DB, then continue. This is Gold Rule 5c.
 - [ ] **Captcha policy: NEVER attempt to solve captchas programmatically.** This is Gold Rule 5b. When a captcha appears (hCaptcha, reCAPTCHA, image challenge, drag-and-drop, etc.), the agent must: (1) ensure browser is headed, (2) notify the user and wait, (3) continue only after user confirms. Never retry in a loop. Never attempt to click captcha elements, solve challenges, or bypass them.
 
@@ -103,7 +104,7 @@ For each selected job:
 2. Click "Easy Apply"
 3. Advance through form steps:
    - Contact info: pre-filled by LinkedIn, verify
-   - Resume: already loaded in LinkedIn profile, verify
+   - Resume: upload the polished CV from `profile.cv_paths` per the pre-flight rule (not LinkedIn's default). Verify the file name on the review step
    - Additional questions: answer based on profile and preferences
      - Years of experience: use real value from profile
      - Salary expectations: use profile range from DB (`job_preferences.salary.value`: min/max/currency). Convert to local currency if the form requires it. **Never invent a salary number.**

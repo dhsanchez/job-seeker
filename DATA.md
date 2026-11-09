@@ -28,6 +28,7 @@ Single row. Structured columns + `data` JSONB for semi-structured profile info.
 | `platforms` | object | Platform tier assignment (output of analysis, not user input): `tier_1`, `tier_2`, `tier_3`, `discarded`. Each tier is an array of `{name, reason}` | `profile` | `radar`, `apply`, `news` |
 | `target_companies` | object | Curated target companies by region: `latam`, `argentina`, etc. Each is an array of `{name, url, sector}` | `profile` or manual | `targets` (company list), `apply` (priority targets) |
 | `cv_path` | string | Absolute path to CV PDF on local machine | `onboarding`, `polish` (updates with generated PDF), or manual | `targets` (upload to career sites), `apply`, `gmail-send.js` |
+| `cv_paths` | object `{en, es}` | Absolute paths to the polished CV per language. `apply` uploads the one matching the posting language on LinkedIn Easy Apply | `polish`, or manual | `apply`, `targets` |
 | `photo_path` | string | Absolute path to profile photo on local machine | `onboarding` or manual | `targets` (upload to career sites) |
 | `strategy` | object | Job search strategy parameters: `level`, `apply_batch_size`, `targets_batch_size`, `daily_frequency`, `match_threshold`, `follow_up_days`, `relax_must_haves`, `cold_outreach`, `sources_active`. See AGENTS.md "Strategy levels" | `onboarding` (step 4b), `strategy` flow, `memory` (auto-update) | All flows (pre-flight) |
 | `linkedin_profile` | string | LinkedIn profile URL | `onboarding` | `apply`, `targets`, `news`, `polish` |
