@@ -92,7 +92,14 @@ function sendEmail({ to, subject, body, from, html = false, attach = [] }) {
     message.attachments = attach.map((p) => ({ path: p }));
   }
 
-  return transporter.sendMail(message);
+  const record = (ok) => {
+    try {
+      const audit = require('../lib/audit-log');
+      audit.log({ actor: 'send-email.js', type: 'send_email', site: host, target: Array.isArray(to) ? to.join(',') : String(to), ok,
+        detail: { subject: audit.fingerprint(subject), body: audit.fingerprint(body), attachments: attach.length } });
+    } catch { /* never break sending */ }
+  };
+  return transporter.sendMail(message).then((info) => { record(true); return info; }, (err) => { record(false); throw err; });
 }
 
 async function main() {

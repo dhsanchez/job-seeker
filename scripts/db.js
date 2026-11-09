@@ -177,6 +177,7 @@ async function main() {
     console.error('[db] note: --write passed for a read-only statement (ignored)');
   }
 
+  let auditOk = true;
   try {
     const r = await client.query(sql);
     if (r.command === 'SELECT') {
@@ -185,10 +186,24 @@ async function main() {
       console.log(JSON.stringify({ rowCount: r.rowCount, command: r.command }, null, 2));
     }
   } catch (e) {
+    auditOk = false;
+    auditDbWrite(sql, isReadOnly, auditOk);
     fail(`Query failed: ${e.message}`);
   } finally {
+    if (auditOk) auditDbWrite(sql, isReadOnly, auditOk);
     await client.end();
   }
+}
+
+// Audit writes only (reads are not actions on the user's behalf). SQL is fingerprinted, not stored.
+function auditDbWrite(sql, isReadOnly, ok) {
+  if (isReadOnly) return;
+  try {
+    const audit = require('../lib/audit-log');
+    const m = sql.match(/^\s*(INSERT\s+INTO|UPDATE|DELETE\s+FROM|CREATE\s+TABLE|ALTER\s+TABLE|DROP\s+TABLE)\s+"?([\w.]+)/i);
+    audit.log({ actor: 'db.js', type: 'db_write', target: m ? m[2] : undefined, ok,
+      detail: { verb: m ? m[1].toUpperCase().replace(/\s+/g, ' ') : 'OTHER', sql: audit.fingerprint(sql) } });
+  } catch { /* never break the DB CLI */ }
 }
 
 main().catch((e) => fail(`Unexpected: ${e.message}`));

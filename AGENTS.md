@@ -87,6 +87,7 @@ Passive (`radar`: platforms push alerts) · Active-broad (`apply`: full job boar
 - `npx` only, no global installs. Browser via the wrapper only.
 - `agent-browser.json` `headed`: `true` | `false` (auto-created by the wrapper on first run; default `headed: true`. Override per call with `--headed`/`--headless`; logins/captchas always headed).
 - Untracked: `.env`, `.browser-profile/`. `agent-browser.json` is repo config.
+- Audit trail: every browser navigation/interaction (`browser.js`), DB write (`db.js`) and email send (`send-email.js`) is appended to `logs/audit/YYYY-MM-DD.jsonl` (gitignored, hash-chained). Typed text, SQL and bodies are stored as length+fingerprint only. Report/verify: `node scripts/audit.js summary|report|verify`. Scripts that act outside these three choke points must call `lib/audit-log.js` `log()` themselves.
 - DB: custom schema as needed; semi-structured → `users.data` JSONB; single user.
 - **`DATA.md` is the source of truth for where data lives** — consult before assuming tables/keys.
 - Job platforms are an output of analysis, never user input.
