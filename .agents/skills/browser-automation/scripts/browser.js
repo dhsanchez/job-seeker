@@ -44,6 +44,27 @@ const SITES_DIR = path.join(__dirname, '..', 'sites');
 const CONFIG_TEMPLATE = path.join(__dirname, 'agent-browser.template.json');
 const UPDATE_CACHE_PATH = path.join(os.homedir(), '.browser-automation', 'update-check.json');
 const DEBUG = process.env.BROWSER_DEBUG === '1';
+
+// Audit trail (logs/audit/*.jsonl). Optional: the wrapper still works if the lib is absent.
+let audit = null;
+try { audit = require(path.join(REPO_ROOT, 'lib', 'audit-log.js')); } catch { /* no audit lib */ }
+// exec subcommands that change page state or act as the user (read-only ones like snapshot are not logged).
+const AUDITED_EXEC = new Set(['navigate', 'goto', 'back', 'forward', 'reload', 'click', 'dblclick', 'fill',
+  'type', 'press', 'keyboard', 'upload', 'check', 'uncheck', 'select', 'drag', 'eval', 'tab']);
+const TEXT_EXEC = new Set(['fill', 'type', 'eval', 'keyboard']);
+function auditSession(args) { const i = args.indexOf('--session'); return i >= 0 ? args[i + 1] : 'default'; }
+function auditEvent(type, { url, session, target, text, ok, detail } = {}) {
+  if (!audit) return;
+  const sess = session || 'default';
+  const u = url || audit.getSessionUrl(sess);
+  const ev = { actor: 'browser.js', type, session: sess, ok };
+  if (u) ev.url = u;
+  if (target) ev.target = String(target).slice(0, 80);
+  if (text !== undefined) ev.detail = Object.assign({ text: audit.fingerprint(text) }, detail);
+  else if (detail) ev.detail = detail;
+  audit.log(ev);
+  if (url && /^https?:/i.test(url)) audit.setSessionUrl(sess, url);
+}
 const UPDATE_CHECK_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // weekly
 
 // Binary resolution: AGENT_BROWSER_BIN > repo-local node_modules > global PATH > npx.
@@ -330,10 +351,14 @@ switch (cmd) {
     const args = ['open'];
     if (rest.includes('--headed')) args.push('--headed');
     if (rest.includes('--headless')) args.push('--headed', 'false');
-    if (!ab(args)) fail('open failed');
+    const openOk = ab(args);
+    auditEvent('open', { url: url && /^https?:/i.test(url) ? url : undefined, ok: openOk, detail: { headed: !rest.includes('--headless') } });
+    if (!openOk) fail('open failed');
     injectBlocklist();
     if (url) {
-      if (!ab(['navigate', url])) fail('navigate failed');
+      const navOk = ab(['navigate', url]);
+      auditEvent('navigate', { url, ok: navOk });
+      if (!navOk) fail('navigate failed');
       printGuide(url);
     }
     break;
@@ -343,7 +368,9 @@ switch (cmd) {
     const tab = optValue('--tab');
     const url = stripOpts(['--tab'])[0];
     if (tab) ab(['tab', tab]);
-    if (!ab(['navigate', url])) fail('goto failed');
+    const gotoOk = ab(['navigate', url]);
+    auditEvent('navigate', { url, ok: gotoOk });
+    if (!gotoOk) fail('goto failed');
     printGuide(url);
     break;
   }
@@ -354,7 +381,9 @@ switch (cmd) {
     const args = ['tab', 'new'];
     if (name) args.push('--label', name);
     if (url) args.push(url);
-    if (!ab(args)) fail('tab-new failed');
+    const tabOk = ab(args);
+    auditEvent('tab-new', { url, target: name, ok: tabOk });
+    if (!tabOk) fail('tab-new failed');
     if (url) printGuide(url);
     break;
   }
@@ -370,7 +399,15 @@ switch (cmd) {
     if (tab) ab(['tab', tab]);
     if (sub[0] === 'run-code') fail('run-code is not supported on agent-browser — use eval/batch');
     const real = sub[0] === 'goto' ? 'navigate' : sub[0];
-    if (!ab([real, ...sub.slice(1)])) process.exit(1);
+    const execOk = ab([real, ...sub.slice(1)]);
+    if (AUDITED_EXEC.has(real)) {
+      const pos = sub.slice(1).filter((a, i, arr) => !a.startsWith('--') && arr[i - 1] !== '--session');
+      const sess = auditSession(sub);
+      if (real === 'navigate') auditEvent('navigate', { url: pos[0], session: sess, ok: execOk });
+      else if (TEXT_EXEC.has(real)) auditEvent(real, { session: sess, target: real === 'eval' ? undefined : pos[0], text: pos.slice(real === 'fill' || real === 'type' ? 1 : 0).join(' '), ok: execOk });
+      else auditEvent(real, { session: sess, target: pos[0], ok: execOk });
+    }
+    if (!execOk) process.exit(1);
     break;
   }
 
