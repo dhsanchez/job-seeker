@@ -8,24 +8,16 @@ Platforms with configured alerts. The agent checks the `Job Alerts` folder in Gm
 
 | Platform | URL | Profile | Alerts | Gmail Filter | Last review | Notes |
 |---|---|---|---|---|---|---|
-| Otta / WTTJ | otta.com / uk.welcometothejungle.com | — | — | no | 2026-08-22 | Redirected to WTTJ, no clear registration from AR |
-| Torre | torre.co | ✅ (Google) | pending | no | 2026-08-22 | Account created, SPA doesn't render well in headless for alert config |
-| Built In | builtin.com | ✅ (Google) | ✅ (email alerts on) | no | 2026-08-22 | Onboarding completed, email alerts enabled |
-| YC Workatastartup | workatastartup.com | pending (manual) | — | no | 2026-08-22 | Requires manual YC account registration |
-| We Work Remotely | weworkremotely.com | — | — | no | 2026-08-22 | Not yet configured |
-| Google Careers | careers.google.com | ✅ (Google) | ✅ (search alert on) | no | 2026-08-22 | Software Engineer search alert activated |
-| Meta Careers | metacareers.com | — | manual_login_needed | no | 2026-08-22 | Requires Meta login to save search |
-| Amazon Jobs | amazon.jobs | — | manual_login_needed | no | 2026-08-22 | Requires Amazon account for alerts |
-| Microsoft Careers | careers.microsoft.com | — | manual_login_needed | no | 2026-08-22 | Requires MS/LinkedIn/Google login for alerts |
-| Vercel Careers | vercel.com/careers | — | manual_login_needed | no | 2026-08-22 | No public alert signup, Ashby board empty |
-| Cloudflare Careers | cloudflare.com/careers | — | manual_login_needed | no | 2026-08-22 | No public alert signup, Greenhouse redirects |
-| Datadog Careers | careers.datadoghq.com | — | ✅ (Talent Community) | no | 2026-08-22 | Joined Talent Community via Gem form |
-| Snowflake Careers | careers.snowflake.com | — | ✅ (Talent Community) | no | 2026-08-22 | Joined Talent Community, Engineering/Americas |
-| GitHub Careers | github.com/careers | — | ✅ (Talent Community) | no | 2026-08-22 | Joined GitHub Talent Community |
-| Stripe Careers | stripe.com/careers | — | no alerts | no | 2026-08-22 | No alert feature on careers site |
-| Zapier Careers | zapier.com/careers | — | no alerts | no | 2026-08-22 | No alert feature, Ashby board has no subscribe |
-| OpenAI | openai.com/careers | — | ✅ (Google Alert) | no | 2026-08-22 | Google Alert: site:openai.com/careers |
-| Anthropic | anthropic.com/careers | — | ✅ (Google Alert) | no | 2026-08-22 | Google Alert: site:anthropic.com/careers |
+| LinkedIn | linkedin.com/jobs | ✅ | ✅ (job alerts by email) | yes | 2026-11-08 | Alerts arriving as Alertas de empleo |
+| Indeed | indeed.com | ✅ | ✅ (email alerts arriving) | yes | 2026-11-08 | Verified from inbox senders |
+| Glassdoor | glassdoor.com | ✅ | ✅ (email alerts arriving, Madrid) | yes | 2026-11-08 | Verified from inbox senders |
+| InfoJobs | infojobs.net | ✅ | ✅ (email alerts arriving) | yes | 2026-11-08 | Not in catalog, added for Spain |
+| AIJobs.ai | aijobs.ai | — | n/a | yes | 2026-11-09 | No candidate signup or alerts (employer accounts only). Browse manually |
+| Wellfound | wellfound.com | ✅ | ✅ (weekly job recommendations by email) | yes | 2026-11-09 | Profile done, Madrid + remote, hidden from current employer. Verify first email arrives |
+| Built In | builtin.com | ✅ | ✅ (saved search: data scientist, Madrid) | yes | 2026-11-09 | Passwordless magic link login. US-heavy board, few Madrid roles. Verify first email arrives |
+| Remotive / RemoteOK | remotive.com / remoteok.com | RemoteOK ✅ | RemoteOK ✅ (email notifications on, tags did not save), Remotive skipped | yes | 2026-11-09 | Remotive alerts need paid membership. RemoteOK uses passwordless magic link login |
+| Tecnoempleo | tecnoempleo.com | partial | pending | yes | 2026-11-09 | Account created, 4-step CV wizard needs date of birth and gender (not in DB). No alert page found yet |
+| Torre | torre.co | ✅ (Google) | pending | yes | 2026-11-09 | Login widget would not open in automation, LATAM-focused, low priority |
 
 > **Gmail filter (two filters, improved 2026-08-14):**
 > 1. **Dominios:** `from:(<domain1> OR <domain2> OR ... OR <ats-domain>)` → Skip Inbox → Apply label "Job Alerts". Cubre job boards + ATS (Greenhouse, Lever, Ashby, Workday, SmartRecruiters, Teamtailor, etc.) + career sites.
