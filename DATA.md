@@ -35,7 +35,7 @@ Single row. Structured columns + `data` JSONB for semi-structured profile info.
 | `last_review_at` | string (ISO) | Timestamp of last `news` run. Used to filter emails since last review | `news` | `news`, `daily` |
 | `linkedin_snapshot` | object | Current LinkedIn profile state at last audit: headline, about, experience[], skills[], education[], open_to_work, languages[], certifications[] | `polish` | `polish` (compare before/after), `news` (context) |
 | `linkedin_polish_log` | array | Audit trail of LinkedIn changes applied: `[{section, before, after, applied_at}]` | `polish` | `polish` (re-audit) |
-| `cv_markdown` | string | Optimized CV in Markdown format (intermediate, used to generate PDF) | `polish` | `apply`, `targets` (future tailoring), `polish` (iteration) |
+| `cv_markdown` | string | Optimized CV in Markdown format (intermediate, used to generate PDF). Base for per-role tailoring | `polish` | `apply`, `referrals` (per-role tailoring), `polish` (iteration) |
 
 Access:
 ```bash
@@ -57,7 +57,7 @@ Every job application registered.
 | `url` | TEXT | Job posting URL (used for dedup) |
 | `status` | TEXT | Pipeline stage (canonical, see below). Active: `discovered`, `contacted`, `applied`, `in_review`, `screening`, `interview`, `offer`, `hired`. Closed: `rejected`, `withdrawn`, `skipped` |
 | `applied_at` | TIMESTAMPTZ | Default NOW() |
-| `data` | JSONB | Match reason, method (easy_apply), location, questions_answered count, `stage_history` (audit trail of moves via `pipeline.js --move`) |
+| `data` | JSONB | Match reason, method (easy_apply), location, questions_answered count, `stage_history` (audit trail of moves via `pipeline.js --move`), `cv` (`{mode: tailored\|reused\|base, lang, file, reused_from, fallback, markdown}`: which CV was sent; `markdown` only for `tailored`) |
 
 Access:
 ```bash

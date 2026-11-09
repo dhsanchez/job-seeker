@@ -76,13 +76,9 @@ If NO internal referral path exists:
 
 Before submitting an application via ATS or email:
 
-1. **Extract top 5 technical & domain keywords** from the target Job Description (e.g., `LangChain`, `System Architecture`, `PyTorch`, `Technical Leadership`).
-2. Compare against `users.data.profile.skills` and `users.data.cv_markdown`.
-3. Highlight matching achievements in the top summary/highlights of the CV markdown.
-4. Generate the micro-aligned PDF CV using `scripts/generate-cv.js` before submitting:
-   ```bash
-   node scripts/generate-cv.js --output assets/cv_tailored_<company>.pdf
-   ```
+Follow the shared procedure in `apply/SKILL.md` Step 2.6 (allowed and forbidden edits, `--tailored` generation, fallback to the base CV, `data.cv` record). Do not call `generate-cv.js` without `--tailored` here: it overwrites `users.data.cv_path`, the base CV.
+
+In short: read the top requirements of the JD, compare with `users.data.profile.skills` and `users.data.cv_markdown`, surface the matching real achievements in the summary, and generate the PDF with `node scripts/generate-cv.js --tailored --markdown <cv.md> --output <pdf>`.
 
 ### 5. Presentation & Summary
 

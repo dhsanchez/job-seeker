@@ -205,9 +205,9 @@ The PDF flow uses `scripts/generate-cv.js`:
 
 The user never sees Markdown or HTML. They see only the final PDF. If they want adjustments, they tell the agent what to change and the agent regenerates.
 
-### 2d. CV tailoring per application (future, not part of this flow)
+### 2d. CV tailoring per application (done by `apply`, not by this flow)
 
-The optimized base CV is generic to the target role. For specific applications, the `apply` or `targets` flow can do "light tailoring" of the base CV (reorder skills, adjust summary to mention the company). This is documented as a future extension, not implemented now.
+The optimized base CV is generic to the target role. `apply` (Step 2.6) and `referrals` derive a per-role copy of `cv_markdown` for each application, with `generate-cv.js --tailored`, which never overwrites `cv_path`. `polish` only maintains the base: keep `cv_markdown` complete and truthful, because tailoring can only re-select what is in it.
 
 ## Persistence in DB
 
@@ -275,4 +275,4 @@ This is the only script in the polish flow. LinkedIn profile audit and editing a
 
 - Depends on `onboarding` (DB, browser profile, LinkedIn session)
 - Depends on `profile` (requires `users.data.profile` and `users.data.job_preferences`)
-- `apply` and `targets` can consume `cv_markdown` and `cv_path` for future tailoring
+- `apply` and `referrals` consume `cv_markdown` for per-role tailoring (`apply/SKILL.md` Step 2.6); `targets` uses the base `cv_path`

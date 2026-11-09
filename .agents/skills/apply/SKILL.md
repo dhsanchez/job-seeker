@@ -30,7 +30,8 @@ The user says `apply` (or variants: "apply to N jobs", "postulate", "search jobs
   node scripts/db.js "SELECT data->'profile' AS profile, data->'job_preferences' AS prefs, data->'personal_info' AS personal FROM users WHERE id = <user_id>"
   node scripts/db.js "SELECT url FROM applications WHERE user_id = <user_id>"
   ```
-- [ ] **CV for LinkedIn Easy Apply:** never keep LinkedIn's preselected/default resume. Upload the CV from `users.data.profile.cv_paths` (`es` for Spanish-language postings, `en` for English; fall back to `profile.cv_path`) using `browser.js exec upload <path>` on the Resume step, then verify the selected file name on the review page before submitting. If `cv_paths` is missing, ask the user (Gold Rule 5c). Stated by the user, saved in `preferences` (`workflow/linkedin_cv`)
+- [ ] **CV for LinkedIn Easy Apply:** never keep LinkedIn's preselected/default resume. Upload the CV chosen in Step 2.6 (a per-role tailored PDF, or the base CV from `users.data.profile.cv_paths`: `es` for Spanish-language postings, `en` for English; fall back to `profile.cv_path`) using `browser.js exec upload <path>` on the Resume step, then verify the selected file name on the review page before submitting. If `cv_paths` is missing, ask the user (Gold Rule 5c). Stated by the user, saved in `preferences` (`workflow/linkedin_cv`)
+- [ ] **Base CV for tailoring:** `users.data.cv_markdown` must exist (written by `polish`). If absent, skip Step 2.6 and use the base PDFs from `cv_paths`; mention in the summary that tailoring was unavailable
 - [ ] **DB is the single source of truth for ALL form fields.** Before filling ANY form (LinkedIn, Lever, Greenhouse, Workday, SuccessFactors, custom sites), the agent must have the profile data loaded in context. **Never invent, guess, or fabricate any value.** If a required field is not in the DB, STOP, ask the user, save the answer to DB, then continue. This is Gold Rule 5c.
 - [ ] **Captcha policy: NEVER attempt to solve captchas programmatically.** This is Gold Rule 5b. When a captcha appears (hCaptcha, reCAPTCHA, image challenge, drag-and-drop, etc.), the agent must: (1) ensure browser is headed, (2) notify the user and wait, (3) continue only after user confirms. Never retry in a loop. Never attempt to click captcha elements, solve challenges, or bypass them.
 
@@ -52,6 +53,8 @@ node scripts/linkedin-easy-apply.js --max 10
 # Then run the script with --session:
 node scripts/linkedin-easy-apply.js --max 10 --session apply-1
 ```
+
+**Resume step caveat:** the script does not touch the Resume step, so a script-driven submit sends whatever LinkedIn preselected, which breaks the CV rule in Pre-flight and Step 2.6. Use the script for discovery (`--dry-run --json`) and do the per-job apply through the manual path below, with the upload. Until the script gains a verified resume upload, do not let it submit.
 
 The script handles: search with Easy Apply filter, **title filtering** (only applies to tech roles — a job must match a tech keyword and not hit the blocklist of non-tech roles like attorney/sales/tutor/support; extendable via `job_preferences.avoid` in DB), form filling with standard answers, radio/combobox/checkbox handling, DB registration, and captcha detection (stops on captcha). The `--session` flag allows running in parallel with other agents by using an attached session instead of the default one.
 
@@ -94,7 +97,44 @@ For each selected position, before submitting a cold application:
 3. **If NO internal contact exists:**
    - If `strategy.cold_outreach = false` → skip recruiter outreach, proceed to Step 3 (cold apply only).
    - If `strategy.cold_outreach = true` → extract Recruiter / Hiring Manager info for the position, stage a recruiter outreach DM draft (Strategy #4 Multi-channel combo).
-   - Perform ATS micro-alignment (tailor CV keywords to JD if applying directly/email) and proceed to Step 3.
+   - Proceed to Step 2.6 (CV tailoring) and then Step 3.
+
+### 2.6. Tailor the CV per role
+
+Runs for every job that reaches submit, LinkedIn Easy Apply and direct career pages alike. The agent does this itself, no user step. Shared with `referrals` (ATS micro-alignment).
+
+**Source of truth:** `users.data.cv_markdown`. A tailored CV is a re-selection and re-ordering of facts already in it, never new facts.
+
+For each job:
+
+1. **Read the JD** from the job page. Note the role category (compare with `job_preferences.role_types`), the seniority the JD asks for, the posting language (`es`/`en`), and the 5 or so requirements that weigh most.
+2. **Pick the mode:**
+   - `base`: the base CV already leads with what the JD asks (summary and first skills cover its top requirements). Use `cv_paths[lang]`. No generation.
+   - `reused`: a CV generated earlier this round has the same role category, seniority and language, and the JD's top requirements overlap. Reuse that file.
+   - `tailored`: anything else. Continue below.
+3. **Draft** a copy of `cv_markdown` at `.browser-profile/cv-tailored/<company>-<role>-<lang>/cv.md` (gitignored). Allowed edits:
+   - Rewrite the summary (2-3 lines) for this role and seniority.
+   - Reorder skills so the ones the JD asks for come first.
+   - Within each job, keep and order the bullets that matter most for this role; drop the least relevant.
+   - Reorder projects.
+   - Use the JD's wording only where it names something the candidate really did (`RAG` vs "retrieval-augmented generation"). No keyword dumps.
+   - Seniority framing: for a more junior JD, lead with delivery and ownership evidence; for a more senior one, lead with scope, impact and leadership evidence that exists in the base. Never change titles, dates or years of experience.
+   - If the posting language differs from the base language, translate faithfully (no new content).
+
+   Forbidden (Gold Rule 5c): new employers, titles, dates, degrees, skills or tools absent from the base; new or altered numbers; claims of seniority the base does not support. No em-dashes (Gold Rule 16). Keep contact data and education. Target one page, two at most.
+4. **Generate** (never touches `users.data.cv_path`):
+   ```bash
+   node scripts/generate-cv.js --tailored --markdown ".browser-profile/cv-tailored/<slug>/cv.md" --output ".browser-profile/cv-tailored/<slug>/<Full_Name>_CV.pdf"
+   ```
+   The file name is visible to the recruiter: use `profile.full_name` only, never the company or the word "tailored".
+   - Exit 2: the check found a number absent from the base or a dash. Fix the draft and rerun. Never edit the base or skip the check.
+   - After the script passes, do the check it cannot do: every skill, tool, employer, title, date and degree in the draft appears in `cv_markdown`.
+   - PDF under about 5 KB: the render failed (blank page). Treat it as a failure.
+   - After 2 failed attempts, or any other failure, fall back to the base CV (`mode: base`, `fallback: true`). A failed tailoring never blocks the application and never leaves LinkedIn's default resume selected.
+5. **Upload** the PDF at the Resume step and verify its file name on the review page (pre-flight CV rule).
+6. **Record** it in the DB insert (Step 3, item 7): `data.cv`.
+
+Cost is about 20-40 seconds per tailored CV. The anti-ban delays in Step 4 already dominate, so the batch size stays as set by `strategy`.
 
 ### 3. Apply via Easy Apply
 
@@ -104,7 +144,7 @@ For each selected job:
 2. Click "Easy Apply"
 3. Advance through form steps:
    - Contact info: pre-filled by LinkedIn, verify
-   - Resume: upload the polished CV from `profile.cv_paths` per the pre-flight rule (not LinkedIn's default). Verify the file name on the review step
+   - Resume: upload the CV chosen in Step 2.6 (tailored PDF, or base from `profile.cv_paths`) per the pre-flight rule, not LinkedIn's default. Verify the file name on the review step
    - Additional questions: answer based on profile and preferences
      - Years of experience: use real value from profile
      - Salary expectations: use profile range from DB (`job_preferences.salary.value`: min/max/currency). Convert to local currency if the form requires it. **Never invent a salary number.**
@@ -121,7 +161,13 @@ For each selected job:
 node scripts/db.js "INSERT INTO applications (user_id, platform, company, role, url, status, data) VALUES (<user_id>, 'linkedin', '<company>', '<role>', '<url>', 'applied', '<json>'::jsonb)" --write
 ```
 
-`data` should include: match reason, method (easy_apply), location, questions_answered count.
+`data` should include: match reason, method (easy_apply), location, questions_answered count, and `cv`:
+
+```json
+{"mode": "tailored", "lang": "en", "file": "<pdf file name>", "reused_from": null, "fallback": false, "markdown": "<tailored cv.md content>"}
+```
+
+`mode` is `tailored`, `reused` or `base`. `markdown` is kept only for `tailored` (audit trail: what was sent, for interview prep and regeneration). The PDFs under `.browser-profile/cv-tailored/` are disposable.
 
 ### 4. Anti-ban
 
@@ -133,7 +179,7 @@ node scripts/db.js "INSERT INTO applications (user_id, platform, company, role, 
 ### 5. Summary
 
 Upon completion, present table with:
-- Company, role, URL
+- Company, role, URL, CV used (`tailored` / `reused` / `base`)
 - Total applied
 - Total skipped with reason
 
@@ -151,7 +197,7 @@ When applying directly to a company career page (not via LinkedIn Easy Apply), t
    - Salary: `job_preferences.salary.value` (min/max/currency). Convert to local currency if the form requires it.
    - LinkedIn URL: `profile.linkedin_profile`
    - GitHub URL: `profile.github`
-   - CV: `profile.cv_path` or `personal_info.cv_pdf_path`
+   - CV: the file chosen in Step 2.6; if tailoring is unavailable, `profile.cv_paths[lang]`, `profile.cv_path` or `personal_info.cv_pdf_path`
    - Work experience: `profile.experience[]`
    - Education: `profile.education[]`
    - Skills: `profile.skills[]` or `profile.tech_stack`

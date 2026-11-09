@@ -28,7 +28,9 @@
 
 const { execSync } = require('child_process');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
+const { pathToFileURL } = require('url');
 
 const {
   openBrowser,
@@ -53,10 +55,18 @@ function parseArgs(argv) {
     output: null,
     markdown: null,
     session: 'default',
+    tailored: false,
+    baseMarkdown: null,
   };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg === '--output' || arg === '--output=') {
+    if (arg === '--tailored') {
+      opts.tailored = true;
+    } else if (arg === '--base-markdown') {
+      opts.baseMarkdown = argv[++i];
+    } else if (arg.startsWith('--base-markdown=')) {
+      opts.baseMarkdown = arg.slice('--base-markdown='.length);
+    } else if (arg === '--output' || arg === '--output=') {
       if (arg.includes('=')) {
         opts.output = arg.split('=')[1];
       } else {
@@ -83,12 +93,56 @@ function parseArgs(argv) {
 function printHelp() {
   console.log(`Usage:
   node scripts/generate-cv.js [--output <path>] [--markdown <path>] [--session <name>]
+  node scripts/generate-cv.js --tailored --markdown <path> --output <path> [--base-markdown <path>]
 
 Options:
-  --output <path>     Output PDF path (default: .browser-profile/cv-polished-<timestamp>.pdf)
-  --markdown <path>   Read Markdown from file instead of DB
-  --session <name>    Browser session name (default: "default")
-  -h, --help          Show this help`);
+  --output <path>          Output PDF path (default: .browser-profile/cv-polished-<timestamp>.pdf)
+  --markdown <path>        Read Markdown from file instead of DB
+  --session <name>         Browser session name (default: "default")
+  --tailored               Per-role CV mode (requires --markdown). Verifies the tailored
+                           Markdown against the base CV (no new numbers, no em/en dashes;
+                           exit 2 on violation, no PDF) and does NOT overwrite
+                           users.data.cv_path in the DB
+  --base-markdown <path>   Base CV for --tailored verification (default: users.data.cv_markdown)
+  -h, --help               Show this help`);
+}
+
+// ---------------------------------------------------------------------------
+// Tailored-CV verification
+// ---------------------------------------------------------------------------
+
+/**
+ * Numeric tokens (years, percentages, counts, amounts) found in a text.
+ * A tailored CV may only reuse numbers already present in the base CV.
+ * @param {string} text
+ * @returns {Set<string>}
+ */
+function numericTokens(text) {
+  const out = new Set();
+  for (const m of text.matchAll(/\d[\d.,]*\d|\d/g)) out.add(m[0]);
+  return out;
+}
+
+/**
+ * Check a tailored CV against the base CV.
+ * Violations: numbers absent from the base (invented metric/date), em/en dashes
+ * (Gold Rule 16).
+ * @param {string} tailored
+ * @param {string} base
+ * @returns {string[]} Human-readable violations (empty = OK).
+ */
+function verifyTailored(tailored, base) {
+  const problems = [];
+  const dashes = new RegExp(`[${String.fromCharCode(0x2013, 0x2014)}]`);
+  if (dashes.test(tailored)) {
+    problems.push('contains an em-dash or en-dash (Gold Rule 16)');
+  }
+  const known = numericTokens(base);
+  const invented = [...numericTokens(tailored)].filter((n) => !known.has(n));
+  if (invented.length) {
+    problems.push(`numbers not present in the base CV: ${invented.join(', ')}`);
+  }
+  return problems;
 }
 
 // ---------------------------------------------------------------------------
@@ -434,7 +488,7 @@ ${bodyHtml}
  * @returns {boolean} true on success.
  */
 function generatePdfFromHtml(htmlPath, outputPath, session) {
-  const fileUrl = `file://${htmlPath}`;
+  const fileUrl = pathToFileURL(htmlPath).href;
 
   // Step 1: Open browser headless to the HTML file
   console.error(`[generate-cv] Opening browser: ${fileUrl}`);
@@ -540,6 +594,11 @@ function main() {
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
+  if (opts.tailored && !opts.markdown) {
+    console.error('--tailored requires --markdown <path> (the per-role CV draft).');
+    process.exit(1);
+  }
+
   // --- Get Markdown content ---
   let markdown = null;
   if (opts.markdown) {
@@ -557,13 +616,28 @@ function main() {
     process.exit(1);
   }
 
+  // --- Tailored mode: verify against the base CV before rendering ---
+  if (opts.tailored) {
+    const base = opts.baseMarkdown ? getMarkdownFromFile(opts.baseMarkdown) : getMarkdownFromDB();
+    if (!base || base.trim() === '') {
+      console.error('--tailored needs a base CV (users.data.cv_markdown or --base-markdown).');
+      process.exit(1);
+    }
+    const problems = verifyTailored(markdown, base);
+    if (problems.length) {
+      console.error('[generate-cv] Tailored CV rejected:');
+      problems.forEach((p) => console.error(`  - ${p}`));
+      process.exit(2);
+    }
+  }
+
   // --- Convert Markdown to HTML ---
   console.error('[generate-cv] Converting Markdown to HTML...');
   const bodyHtml = markdownToHtml(markdown);
   const htmlDoc = buildHtmlDocument(bodyHtml);
 
   // --- Write HTML to temp file ---
-  const tempHtmlPath = path.join('/tmp', `cv-${timestamp}.html`);
+  const tempHtmlPath = path.join(os.tmpdir(), `cv-${timestamp}.html`);
   fs.writeFileSync(tempHtmlPath, htmlDoc, 'utf8');
   console.error(`[generate-cv] Wrote temp HTML: ${tempHtmlPath}`);
 
@@ -598,8 +672,8 @@ function main() {
     process.exit(1);
   }
 
-  // --- Update DB with new CV path ---
-  updateCvPathInDB(outputPath);
+  // --- Update DB with new CV path (never for per-role tailored CVs: base CV path stays) ---
+  if (!opts.tailored) updateCvPathInDB(outputPath);
 
   // --- Output the PDF path to stdout ---
   console.log(outputPath);
