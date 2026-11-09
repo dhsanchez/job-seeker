@@ -16,8 +16,8 @@ Platforms with configured alerts. The agent checks the `Job Alerts` folder in Gm
 | Wellfound | wellfound.com | ✅ | ✅ (weekly job recommendations by email) | yes | 2026-11-09 | Profile done, Madrid + remote, hidden from current employer. Verify first email arrives |
 | Built In | builtin.com | ✅ | ✅ (saved search: data scientist, Madrid) | yes | 2026-11-09 | Passwordless magic link login. US-heavy board, few Madrid roles. Verify first email arrives |
 | Remotive / RemoteOK | remotive.com / remoteok.com | RemoteOK ✅ | RemoteOK ✅ (email notifications on, tags did not save), Remotive skipped | yes | 2026-11-09 | Remotive alerts need paid membership. RemoteOK uses passwordless magic link login |
-| Tecnoempleo | tecnoempleo.com | partial | pending | yes | 2026-11-09 | Account created, 4-step CV wizard needs date of birth and gender (not in DB). No alert page found yet |
-| Torre | torre.co | ✅ (Google) | pending | yes | 2026-11-09 | Login widget would not open in automation, LATAM-focused, low priority |
+| Tecnoempleo | tecnoempleo.com | ✅ | ✅ (3 alerts: Python Madrid + Big Data, Python 100% remoto, data scientist Madrid; daily digest) | yes | 2026-11-09 | Email verified, CV profile complete. Verify first email arrives |
+| Torre | torre.co | ✅ (Google) | dropped | yes | 2026-11-09 | Dropped by user: LATAM-focused, low priority |
 
 > **Gmail filter (two filters, improved 2026-08-14):**
 > 1. **Dominios:** `from:(<domain1> OR <domain2> OR ... OR <ats-domain>)` → Skip Inbox → Apply label "Job Alerts". Cubre job boards + ATS (Greenhouse, Lever, Ashby, Workday, SmartRecruiters, Teamtailor, etc.) + career sites.
